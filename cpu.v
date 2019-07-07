@@ -79,7 +79,11 @@ module cpu(clk);
         pc <= 0;
     end
 
-    wire [31:0] pc1, pc_branch;
+    wire [31:0] pc1;
+    assign pc1 = pc + 1;
+
+    wire [31:0] pc_branch;
+    assign pc_branch = pc1 + {{16{imm[15]}}, imm};
 
     wire [31:0] insn;
 
@@ -94,9 +98,6 @@ module cpu(clk);
 
     wire [15:0] imm;
     assign imm = insn[15:0];
-
-    assign pc1 = pc + 1;
-    assign pc_branch = pc1 + {{16{imm[15]}}, imm};
 
     wire write_pc_enable;
     assign write_pc_enable = insn[30];
