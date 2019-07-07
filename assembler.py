@@ -29,7 +29,7 @@ opcodes = {
     'j':     (0x10, INSN_J),
 }
 
-class SyntaxError(Exception):
+class ParseError(Exception):
     pass
 
 class Assembler:
@@ -43,7 +43,7 @@ class Assembler:
             for lineno, line in enumerate(f):
                 m = re_code.match(line.strip())
                 if not m:
-                    raise Exception('syntax error in line %d' % (lineno + 1))
+                    raise ParseError('syntax error in line %d' % (lineno + 1))
                 groups = m.groups()
                 label, code = groups[0:2]
                 if label is not None:
@@ -53,50 +53,56 @@ class Assembler:
                     params = [x.strip() for x in groups[3].split(',')]
                     try:
                         self.memory.append(self.assemble_insn(insn, params))
-                    except SyntaxError, e:
-                        raise Exception('in line %d: %s' % (lineno + 1, e.message))
+                    except ParseError, e:
+                        raise ParseError('in line %d: %s' % (lineno + 1, e.message))
         # fix label references
         for label, addr in self.label_refs:
             if label not in self.labels:
-                raise SyntaxError("undefined label `%s'" % label)
+                raise ParseError("undefined label `%s'" % label)
             self.memory[addr] |= (self.labels[label] - (addr + 1)) & 0xffff
 
     def assemble_insn(self, insn, params):
         if insn not in opcodes:
-            raise SyntaxError("unrecognized instruction `%s'" % insn)
+            raise ParseError("unrecognized instruction `%s'" % insn)
         opcode, insn_type = opcodes[insn]
         if insn_type == INSN_RRR:
             if len(params) != 3:
-                raise SyntaxError("invalid number of operands")
+                raise ParseError("invalid number of operands for %s" % insn)
             rd = self.parse_register(params[0])
             rs = self.parse_register(params[1])
             rt = self.parse_register(params[2])
             return (opcode << 26) | (rd << 21) | (rs << 16) | (rt << 11)
         elif insn_type == INSN_RRI:
             if len(params) != 3:
-                raise SyntaxError("invalid number of operands")
+                raise ParseError("invalid number of operands for %s" % insn)
             rd = self.parse_register(params[0])
             rs = self.parse_register(params[1])
             imm = self.parse_immediate(params[2])
             return (opcode << 26) | (rd << 21) | (rs << 16) | (imm & 0xffff)
         elif insn_type == INSN_J:
             if len(params) != 1:
-                raise SyntaxError("invalid number of operands")
+                raise ParseError("invalid number of operands for %s" % insn)
             self.label_refs.append((params[0], len(self.memory)))
             return opcode << 26
 
     def parse_register(self, reg):
         if reg[0] != 'r':
-            raise Exception('expected register')
-        return int(reg[1:])
+            raise ParseError('invalid register')
+        try:
+            return int(reg[1:])
+        except ValueError:
+            raise ParseError('invalid register')
 
     def parse_immediate(self, imm):
-        if imm[-1] == 'h':
-            return int(imm[-1], 16)
-        elif imm[-1] == 'b':
-            return int(imm[-1], 2)
-        else:
-            return int(imm)
+        try:
+            if imm[-1] == 'h':
+                return int(imm[:-1], 16)
+            elif imm[-1] == 'b':
+                return int(imm[:-1], 2)
+            else:
+                return int(imm)
+        except ValueError:
+            raise ParseError('invalid immediate')
 
 def main(argv):
     if len(argv) != 3:
@@ -104,7 +110,12 @@ def main(argv):
         return 1
 
     a = Assembler()
-    a.assemble(argv[1])
+
+    try:
+        a.assemble(argv[1])
+    except ParseError, e:
+        print 'Parse error: %s' % e.message
+        return 1
 
     with open(argv[2], 'w') as f:
         for code in a.memory:
