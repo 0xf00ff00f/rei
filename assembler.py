@@ -1,7 +1,7 @@
 import sys
 import re
 
-re_code = re.compile('^(\w+:)?\s*((\w+)\s+(\w+(\s*,\s*\w+)*))?\s*(#.*)?$')
+re_code = re.compile('^(\w+:)?\s*((\w+)\s+([\w-]+(\s*,\s*[\w-]+)*))?\s*(#.*)?$')
 
 MEMORY_SIZE = 256
 
@@ -27,6 +27,8 @@ opcodes = {
     'shli':  (0x0e, INSN_RRI),
     'shri':  (0x0f, INSN_RRI),
     'j':     (0x10, INSN_J),
+    'lw':    (0x18, INSN_RRI),
+    'sw':    (0x19, INSN_RRI),
 }
 
 class ParseError(Exception):
