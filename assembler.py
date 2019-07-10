@@ -1,13 +1,35 @@
 import sys
 import re
 
-re_code = re.compile('^(\w+:)?\s*((\w+)\s+([\w-]+(\s*,\s*[\w-]+)*))?\s*(#.*)?$')
+re_code = re.compile(r'''
+    ^
+    (\w+:)?                     # optional label
+    \s*
+    (
+     (\w+)                      # instruction
+     \s+
+     (\w+                       # register arg or label
+      (\s*,\s*
+       (
+        (\w+(\s*,\s*\w+)*)|     # comma-separated args
+        (\w+\s*\(\s*\w+\s*\))   # indexed addr arg (for lw/sw)
+       )
+      )?
+     )
+    )?
+    \s*
+    (\#.*)?                     # comment
+    $
+    ''', re.X)
+
+re_indexed_addr = re.compile(r'(\w+)\s*\(\s*(\w+)\s*\)')
 
 MEMORY_SIZE = 256
 
 INSN_RRR = 0
 INSN_RRI = 1
 INSN_J = 2
+INSN_MEM = 3
 
 opcodes = {
     'add':   (0x00, INSN_RRR),
@@ -27,8 +49,8 @@ opcodes = {
     'shli':  (0x0e, INSN_RRI),
     'shri':  (0x0f, INSN_RRI),
     'j':     (0x10, INSN_J),
-    'lw':    (0x18, INSN_RRI),
-    'sw':    (0x19, INSN_RRI),
+    'lw':    (0x18, INSN_MEM),
+    'sw':    (0x19, INSN_MEM),
 }
 
 class ParseError(Exception):
@@ -86,6 +108,12 @@ class Assembler:
                 raise ParseError("invalid number of operands for %s" % insn)
             self.label_refs.append((params[0], len(self.memory)))
             return opcode << 26
+        elif insn_type == INSN_MEM:
+            if len(params) != 2:
+                raise ParseError("invalid number of operands for %s" % insn)
+            rd = self.parse_register(params[0])
+            addr = self.parse_indexed_addr(params[1])
+            return (opcode << 26) | (rd << 21) | (addr[1] << 16) | (addr[0] & 0xffff)
 
     def parse_register(self, reg):
         if reg[0] != 'r':
@@ -105,6 +133,13 @@ class Assembler:
                 return int(imm)
         except ValueError:
             raise ParseError('invalid immediate')
+
+    def parse_indexed_addr(self, addr):
+        m = re_indexed_addr.match(addr)
+        if not m:
+            raise ParseError('expected indexed address')
+        groups = m.groups()
+        return (self.parse_immediate(groups[0]), self.parse_register(groups[1]))
 
 def main(argv):
     if len(argv) != 3:
