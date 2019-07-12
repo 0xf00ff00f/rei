@@ -1,25 +1,36 @@
-add   | add $d,$s,$t     | $d = $s + $t     | 0000 00dd ddds ssss tttt txxx xxxx xxxx |
-sub   | sub $d,$s,$t     | $d = $s - $t     | 0000 01dd ddds ssss tttt txxx xxxx xxxx |
-and   | and $d,$s,$t     | $d = $s & $t     | 0000 10dd ddds ssss tttt txxx xxxx xxxx |
-or    | or $d,$s,$t      | $d = $s | $t     | 0000 11dd ddds ssss tttt txxx xxxx xxxx |
-xor   | xor $d,$s,$t     | $d = $s ^ $t     | 0001 00dd ddds ssss tttt txxx xxxx xxxx |
-nand  | nand $d,$s,$t    | $d = ~($s & $t)  | 0001 01dd ddds ssss tttt txxx xxxx xxxx |
-shl   | shl $d,$s,$t     | $d = $s << $t    | 0001 10dd ddds ssss tttt txxx xxxx xxxx |
-shr   | shr $d,$s,$t     | $d = $s >> $t    | 0001 11dd ddds ssss tttt txxx xxxx xxxx |
+add   | add $d,$s,$t     | $d = $s + $t      | 0000 0000 dddd ssss tttt xxxx xxxx xxxx |
+addc  | addc $d,$s,$t    | $d = $s + $t + c  | 0000 0001 dddd ssss tttt xxxx xxxx xxxx |
+sub   | sub $d,$s,$t     | $d = $s - $t      | 0000 0010 dddd ssss tttt xxxx xxxx xxxx |
+subc  | sub $d,$s,$t     | $d = $s - $t - ~c | 0000 0011 dddd ssss tttt xxxx xxxx xxxx |
+and   | and $d,$s,$t     | $d = $s & $t      | 0000 0100 dddd ssss tttt xxxx xxxx xxxx |
+or    | or $d,$s,$t      | $d = $s | $t      | 0000 0101 dddd ssss tttt xxxx xxxx xxxx |
+xor   | xor $d,$s,$t     | $d = $s ^ $t      | 0000 0110 dddd ssss tttt xxxx xxxx xxxx |
+nand  | nand $d,$s,$t    | $d = ~($s & $t)   | 0000 0111 dddd ssss tttt xxxx xxxx xxxx |
+shl   | shl $d,$s,$t     | $d = $s << $t     | 0000 1000 dddd ssss tttt xxxx xxxx xxxx |
+shr   | shr $d,$s,$t     | $d = $s >> $t     | 0000 1001 dddd ssss tttt xxxx xxxx xxxx |
 
-addi  | addi $d,$s,imm   | $d = $s + imm    | 0010 00dd ddds ssss iiii iiii iiii iiii |
-subi  | subi $d,$s,imm   | $d = $s - imm    | 0010 01dd ddds ssss iiii iiii iiii iiii |
-andi  | andi $d,$s,imm   | $d = $s & imm    | 0010 10dd ddds ssss iiii iiii iiii iiii |
-ori   | ori $d,$s,imm    | $d = $s | imm    | 0010 11dd ddds ssss iiii iiii iiii iiii |
-xori  | xori $d,$s,imm   | $d = $s ^ imm    | 0011 00dd ddds ssss iiii iiii iiii iiii |
-nandi | nandi $d,$s,imm  | $d = ~($s & imm) | 0011 01dd ddds ssss iiii iiii iiii iiii |
-shli  | shl $d,$s,imm    | $d = $s << imm   | 0011 10dd ddds ssss dddd dxxx xxxi iiii |
-shri  | shr $d,$s,imm    | $d = $s >> imm   | 0011 11dd ddds ssss dddd dxxx xxxi iiii |
+cmp   | cmp $s,$t        |                   | 0000 1111 xxxx ssss tttt xxxx xxxx xxxx |
 
-j     | j offset         | pc += imm        | 0100 00xx xxxx xxxx iiii iiii iiii iiii |
-beq   | beq $d,$s,offset | j if $d == $s    | 0100 01dd ddds ssss iiii iiii iiii iiii |
+addi  | addi $d,$s,imm   | $d = $s + imm     | 0001 0000 dddd ssss iiii iiii iiii iiii |
+addic |                  |                   | 0001 0000 dddd ssss iiii iiii iiii iiii |
+subi  | subi $d,$s,imm   | $d = $s - imm     | 0001 0000 dddd ssss iiii iiii iiii iiii |
+subic |                  |                   | 0001 0000 dddd ssss iiii iiii iiii iiii |
+andi  | andi $d,$s,imm   | $d = $s & imm     | 0001 0000 dddd ssss iiii iiii iiii iiii |
+ori   | ori $d,$s,imm    | $d = $s | imm     | 0001 0000 dddd ssss iiii iiii iiii iiii |
+xori  | xori $d,$s,imm   | $d = $s ^ imm     | 0001 0000 dddd ssss iiii iiii iiii iiii |
+nandi | nandi $d,$s,imm  | $d = ~($s & imm)  | 0001 0000 dddd ssss iiii iiii iiii iiii |
+shli  | shl $d,$s,imm    | $d = $s << imm    | 0001 0000 dddd ssss xxxx xxxx xxxi iiii |
+shri  | shr $d,$s,imm    | $d = $s >> imm    | 0001 0000 dddd ssss xxxx xxxx xxxi iiii |
 
-lw    | lw $d,$s,imm     | $d = *($s + imm) | 0110 00dd ddds ssss iiii iiii iiii iiii |
-sw    | sw $d,$s,imm     | *($s + imm) = $d | 0110 01dd ddds ssss iiii iiii iiii iiii |
+cmpi  | cmpi $s,imm      |                   | 0001 0000 xxxx ssss iiii iiii iiii iiii |
 
-trap  | trap imm         |                  | 1110 00ss ssst tttt iiii iiii iiii iiii |
+b     | j offset         | pc += imm         | 0010 0000 xxxx xxxx iiii iiii iiii iiii |
+bz    |                  |                   | 0010 0001 xxxx xxxx iiii iiii iiii iiii |
+bnz   |                  |                   | 0010 0010 xxxx xxxx iiii iiii iiii iiii |
+bc    |                  |                   | 0010 0011 xxxx xxxx iiii iiii iiii iiii |
+bnc   |                  |                   | 0010 0100 xxxx xxxx iiii iiii iiii iiii |
+
+lw    | lw $d,$s,imm     | $d = *($s + imm)  | 0011 0000 dddd ssss iiii iiii iiii iiii |
+sw    | sw $d,$s,imm     | *($s + imm) = $d  | 0011 0001 dddd ssss iiii iiii iiii iiii |
+
+trap  | trap imm         |                   | 1111 xxxx xxxx xxxx iiii iiii iiii iiii |

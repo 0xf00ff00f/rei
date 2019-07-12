@@ -12,45 +12,63 @@ re_code = re.compile(r'''
       (\s*,\s*
        (
         (\w+(\s*,\s*\w+)*)|     # comma-separated args
-        (\w+\s*\(\s*\w+\s*\))   # indexed addr arg (for lw/sw)
+        ([\d-]*\s*\(\s*\w+\s*\))   # indexed addr arg (for lw/sw)
        )
       )?
      )
     )?
     \s*
-    (\#.*)?                     # comment
+    (;.*)?                      # comment
     $
     ''', re.X)
 
-re_indexed_addr = re.compile(r'(\w+)\s*\(\s*(\w+)\s*\)')
+re_indexed_addr = re.compile(r'([\d-]*)\s*\(\s*(\w+)\s*\)')
 
 MEMORY_SIZE = 256
 
-INSN_RRR = 0
-INSN_RRI = 1
-INSN_J = 2
-INSN_MEM = 3
+INSN_RRR    = 0
+INSN_RR     = 1
+INSN_RRI    = 2
+INSN_RI     = 3
+INSN_J      = 4
+INSN_MEM    = 5
+INSN_TRAP   = 6
 
 opcodes = {
     'add':   (0x00, INSN_RRR),
-    'sub':   (0x01, INSN_RRR),
-    'and':   (0x02, INSN_RRR),
-    'or':    (0x03, INSN_RRR),
-    'xor':   (0x04, INSN_RRR),
-    'nand':  (0x05, INSN_RRR),
-    'shl':   (0x06, INSN_RRR),
-    'shr':   (0x07, INSN_RRR),
-    'addi':  (0x08, INSN_RRI),
-    'subi':  (0x09, INSN_RRI),
-    'andi':  (0x0a, INSN_RRI),
-    'ori':   (0x0b, INSN_RRI),
-    'xori':  (0x0c, INSN_RRI),
-    'nandi': (0x0d, INSN_RRI),
-    'shli':  (0x0e, INSN_RRI),
-    'shri':  (0x0f, INSN_RRI),
-    'j':     (0x10, INSN_J),
-    'lw':    (0x18, INSN_MEM),
-    'sw':    (0x19, INSN_MEM),
+    'addc':  (0x01, INSN_RRR),
+    'sub':   (0x02, INSN_RRR),
+    'subc':  (0x03, INSN_RRR),
+    'and':   (0x04, INSN_RRR),
+    'or':    (0x05, INSN_RRR),
+    'xor':   (0x06, INSN_RRR),
+    'nand':  (0x07, INSN_RRR),
+    'shl':   (0x08, INSN_RRR),
+    'shr':   (0x09, INSN_RRR),
+    'cmp':   (0x0f, INSN_RR),
+
+    'addi':  (0x10, INSN_RRI),
+    'addic': (0x11, INSN_RRI),
+    'subi':  (0x12, INSN_RRI),
+    'subic': (0x13, INSN_RRI),
+    'andi':  (0x14, INSN_RRI),
+    'ori':   (0x15, INSN_RRI),
+    'xori':  (0x16, INSN_RRI),
+    'nandi': (0x17, INSN_RRI),
+    'shli':  (0x18, INSN_RRI),
+    'shri':  (0x19, INSN_RRI),
+    'cmpi':  (0x1f, INSN_RI),
+
+    'b':     (0x20, INSN_J),
+    'bz':    (0x21, INSN_J),
+    'bnz':   (0x22, INSN_J),
+    'bc':    (0x23, INSN_J),
+    'bnc':   (0x24, INSN_J),
+
+    'lw':    (0x30, INSN_MEM),
+    'sw':    (0x31, INSN_MEM),
+    
+    'trap':  (0xf0, INSN_TRAP),
 }
 
 class ParseError(Exception):
@@ -95,25 +113,48 @@ class Assembler:
             rd = self.parse_register(params[0])
             rs = self.parse_register(params[1])
             rt = self.parse_register(params[2])
-            return (opcode << 26) | (rd << 21) | (rs << 16) | (rt << 11)
+            return (opcode << 24) | (rd << 20) | (rs << 16) | (rt << 12)
+        elif insn_type == INSN_RR:
+            if len(params) != 2:
+                raise ParseError("invalid number of operands for %s" % insn)
+            rs = self.parse_register(params[0])
+            rt = self.parse_register(params[1])
+            return (opcode << 24) | (rs << 16) | (rt << 12)
         elif insn_type == INSN_RRI:
             if len(params) != 3:
                 raise ParseError("invalid number of operands for %s" % insn)
             rd = self.parse_register(params[0])
             rs = self.parse_register(params[1])
             imm = self.parse_immediate(params[2])
-            return (opcode << 26) | (rd << 21) | (rs << 16) | (imm & 0xffff)
+            return (opcode << 24) | (rd << 20) | (rs << 16) | (imm & 0xffff)
+        elif insn_type == INSN_RRI:
+            if len(params) != 2:
+                raise ParseError("invalid number of operands for %s" % insn)
+            rs = self.parse_register(params[0])
+            imm = self.parse_immediate(params[1])
+            return (opcode << 24) | (rs << 16) | (imm & 0xffff)
+        elif insn_type == INSN_RI:
+            if len(params) != 2:
+                raise ParseError("invalid number of operands for %s" % insn)
+            rs = self.parse_register(params[0])
+            imm = self.parse_immediate(params[1])
+            return (opcode << 24) | (rs << 16) | (imm & 0xffff)
         elif insn_type == INSN_J:
             if len(params) != 1:
                 raise ParseError("invalid number of operands for %s" % insn)
             self.label_refs.append((params[0], len(self.memory)))
-            return opcode << 26
+            return opcode << 24
         elif insn_type == INSN_MEM:
             if len(params) != 2:
                 raise ParseError("invalid number of operands for %s" % insn)
             rd = self.parse_register(params[0])
             addr = self.parse_indexed_addr(params[1])
-            return (opcode << 26) | (rd << 21) | (addr[1] << 16) | (addr[0] & 0xffff)
+            return (opcode << 24) | (rd << 20) | (addr[1] << 16) | (addr[0] & 0xffff)
+        elif insn_type == INSN_TRAP:
+            if len(params) != 1:
+                raise ParseError("invalid number of operands for %s" % insn)
+            imm = self.parse_immediate(params[0])
+            return (opcode << 24) | (imm & 0xffff)
 
     def parse_register(self, reg):
         if reg[0] != 'r':
@@ -139,7 +180,7 @@ class Assembler:
         if not m:
             raise ParseError('expected indexed address')
         groups = m.groups()
-        return (self.parse_immediate(groups[0]), self.parse_register(groups[1]))
+        return (self.parse_immediate(groups[0]) if len(groups[0]) else 0, self.parse_register(groups[1]))
 
 def main(argv):
     if len(argv) != 3:
@@ -147,7 +188,6 @@ def main(argv):
         return 1
 
     a = Assembler()
-
     try:
         a.assemble(argv[1])
     except ParseError, e:
